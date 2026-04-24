@@ -72,9 +72,11 @@ Claude Code scans skills at session start. Quit and relaunch the app (or run `/c
 
 ```bash
 cd ~/projects                                # or wherever you keep work
-git clone git@github.com:jeffbander/svc-os-test.git
+git clone https://github.com/jeffbander/svc-os-test.git
 cd svc-os-test
 ```
+
+(If you have SSH registered with GitHub, `git@github.com:jeffbander/svc-os-test.git` also works. HTTPS is the zero-config default — it reuses your `gh auth` token.)
 
 Then install dependencies:
 
@@ -213,6 +215,16 @@ That's your first feature. Total time should be 15 min for something trivial, 30
 ---
 
 ## Troubleshooting
+
+### `git clone git@github.com:...` → Permission denied (publickey)
+You don't have an SSH key registered with GitHub, but `gh` is authed over HTTPS. Use the HTTPS clone URL instead:
+```bash
+git clone https://github.com/jeffbander/svc-os-test.git
+```
+To set up SSH later (optional): `ssh-keygen -t ed25519 -C "your-email@example.com"` then `gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname)"` and verify with `ssh -T git@github.com`.
+
+### Pasted a block that ended in `#` and zsh shows `quote>`
+Zsh entered quoted-string continuation mode because something in the paste looked unclosed. Press `Ctrl+C` to escape, then paste individual lines without trailing `#` comments, or wrap the whole paste in a heredoc.
 
 ### `/install` asks me to paste env vars I've never seen
 Open the Clerk dashboard, click the app it created, grab `Publishable key` and `Secret key`. They're under API Keys.

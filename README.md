@@ -27,14 +27,17 @@ Personal SaaS starter combining **[secure-vibe-coding-OS](https://github.com/har
 ## Quick start
 
 ```bash
-git clone git@github.com:jeffbander/svc-os-test.git
+git clone https://github.com/jeffbander/svc-os-test.git
 cd svc-os-test
 npm install
-claude                    # opens Claude Code in this directory
-# then, inside Claude Code:
-/install                  # SVC-OS's guided setup (Clerk + Convex)
-npm run dev               # local at http://localhost:3000
+claude
 ```
+
+Then, inside Claude Code: run `/install` to configure Clerk + Convex.
+
+In a separate terminal: `cd svc-os-test && npm run dev` — app runs at http://localhost:3000.
+
+If you have SSH set up with GitHub, `git clone git@github.com:jeffbander/svc-os-test.git` also works. HTTPS is the zero-config default.
 
 Full step-by-step: **[ONBOARDING.md](ONBOARDING.md)**.
 
