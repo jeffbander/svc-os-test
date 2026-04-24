@@ -42,7 +42,7 @@ These are mirrored in `CLAUDE.md` — Claude Code loads them every session.
 | Think / brainstorm | gstack | `/gstack-office-hours` |
 | Plan (full pipeline) | gstack | `/gstack-autoplan` |
 | Plan (individual reviews) | gstack | `/gstack-plan-ceo-review`, `/gstack-plan-eng-review`, `/gstack-plan-design-review`, `/gstack-plan-devex-review` |
-| Design — system from scratch | gstack | `/gstack-design-consultation` (greenfield only — SVC-OS already has shadcn + Tailwind v4) |
+| Design — system + tokens | gstack | `/gstack-design-consultation` — run once per project to create `DESIGN.md` (brand palette, type scale, motion policy, elevation, density) on top of the inherited shadcn tokens. Skill documents decisions; it does not rebuild shadcn. |
 | Design — explore variants | gstack | `/gstack-design-shotgun` |
 | Design — implement markup | gstack | `/gstack-design-html` (Pretext) |
 | Design — live QA | gstack | `/gstack-design-review` |
@@ -124,6 +124,32 @@ Not every sprint needs every step. Minimums:
 
 ---
 
+## Design sub-workflow
+
+The five gstack design skills compose cleanly with shadcn + Tailwind. None of them rip out the component library; each fills a specific gap.
+
+**One-time bootstrap (per project):**
+
+1. `/gstack-design-consultation` — creates `DESIGN.md` at repo root. Documents brand palette, type scale, motion philosophy, spacing/elevation/radius decisions. Reads the existing shadcn tokens in `app/globals.css` and builds decisions on top of them. The skill is interactive; answer honestly about brand direction, competitors, and vibe. Commit `DESIGN.md` to the repo so the whole team shares one design source of truth.
+
+**Per feature with UI:**
+
+1. `/gstack-plan-design-review` on the feature plan — 7 passes scored 0–10 (information architecture, interaction-state coverage, user journey, AI-slop risk, design-system alignment, responsive/a11y, unresolved decisions). Edits the plan to add specifics before any code is written. Reads `DESIGN.md` as the calibration baseline.
+2. **Optional:** `/gstack-design-shotgun` if the plan has visual ambiguity. Generates 3–8 AI mockup variants, opens a comparison board, collects feedback, iterates. Output is PNG images in an artifact dir; does not touch the repo.
+3. **Optional:** `/gstack-design-html` on the approved mockup. When it asks about output format, choose **React component (`.tsx`)**. The skill detects Next.js and generates a `.tsx` reference. Pretext (30KB, zero deps) handles text layout so the reference actually reflows correctly.
+4. Implement the feature using **composed shadcn primitives** from `components/ui/`, guided by the reference. Do not paste `/gstack-design-html`'s output verbatim — rebuild with shadcn components for consistency with the rest of the app. The reference is for layout/spacing/rhythm, not for shipping.
+5. After `/push` gives you a Vercel preview, run `/gstack-design-review https://<branch>.vercel.app`. The skill audits the rendered site (never reads source), finds visual issues, commits atomic fixes. Reads `DESIGN.md` as the baseline for "is this on-brand."
+
+**Key design rules for this stack:**
+
+- Design tokens live in `app/globals.css` (OKLCH variables). Changes to tokens propagate to every shadcn component automatically. This is the ONLY place to change colors, radius, or semantic tokens project-wide.
+- shadcn primitives in `components/ui/` are yours to edit (they're in the repo, not an npm dep). Customizing a button variant, adding a new size, or tweaking a card layout is allowed and expected.
+- `motion/react` + `framer-motion` are both already installed. Prefer `motion/react` for new work (it's the successor). `DESIGN.md` should specify when to animate, not just what library to use.
+- Dark mode is managed by `next-themes` via the `.dark` class on `<html>`. All design decisions must work in both modes.
+- New component primitives (beyond the 27 shadcn components already present) go in `components/ui/` following shadcn conventions. `npx shadcn@latest add <component>` when the primitive exists upstream.
+
+---
+
 ## Conflict resolution
 
 When SVC-OS and gstack reach different conclusions, **SVC-OS wins**. Reasons:
@@ -142,7 +168,7 @@ Disagreement patterns to watch for:
 | `/gstack-cso` flags something `/security-assessment` says is fine | Investigate. If SVC-OS agents are correct, close the gstack finding with a note. If gstack is correct, file an issue against SVC-OS upstream. |
 | `/gstack-review` recommends refactoring `lib/security.ts` | Block. Invariant #2. Run `/gstack-freeze lib/security.ts` and consider whether the refactor is worth breaking the baseline. |
 | `/gstack-plan-ceo-review` recommends swapping Clerk for Auth.js | Reject. Invariant #1. |
-| `/gstack-design-consultation` rebuilds the design system | Reject — SVC-OS has one. Only run this skill for greenfield surfaces. |
+| `/gstack-design-consultation` proposes swapping shadcn/Radix for another component library | Reject. Invariant #1. The skill's role here is to document design decisions via `DESIGN.md` on top of the inherited shadcn primitives, not to replace them. Token changes (palette, type, radius) in `app/globals.css` are allowed; ripping out shadcn is not. |
 
 ---
 

@@ -61,6 +61,12 @@ All of the below is inherited from upstream `harperaa/secure-vibe-coding-OS` exc
 | Package manager | npm | Lockfile + CI expect npm. |
 | Node | 20+ | Vercel default + Next 15 baseline. |
 | Test runner | Vitest | Documented in upstream CLAUDE.md. |
+| Design primitives | shadcn/ui (new-york / neutral) in `components/ui/` | Code-in-repo, composable, editable. Not an npm dep. |
+| Design tokens | OKLCH CSS variables in `app/globals.css` | Tailwind v4 inline config reads them. Changing tokens cascades to every shadcn component. |
+| Design system (decisions) | `DESIGN.md` at repo root, created by `/gstack-design-consultation` | Brand palette, type scale, motion policy, elevation. Decisions ON TOP of shadcn, not a replacement. |
+| Animation | `motion/react` (primary) + `framer-motion` (legacy) | Both installed; prefer `motion/react` for new work. |
+| Dark mode | `next-themes` with `.dark` class on `<html>` | System-default, user-toggleable. |
+| Fonts | Geist + Geist Mono via `next/font/google` | Loaded in `app/layout.tsx`. |
 
 **Changing any of the above requires:** an ADR-style entry in `CHANGELOG.md`, an update to `INTEGRATION.md` removing the stack from the invariants, and a PR that passes both `/security-assessment` and `/gstack-cso`.
 
@@ -123,6 +129,7 @@ svc-os-test/
 ├── SECURITY.md             # Security policy
 ├── CHANGELOG.md            # Version history
 ├── DEPLOYMENT.md           # Deploy guide (unchanged from upstream)
+├── DESIGN.md               # Design system decisions (brand palette, type, motion)
 │
 └── docs/
     ├── UPSTREAM_README.md  # Original SVC-OS README preserved
@@ -132,6 +139,67 @@ svc-os-test/
 ```
 
 Legend: `⚠️ OFF-LIMITS` means you need `/gstack-freeze <file>` + deliberate change + passing `/security-assessment` before the change can merge.
+
+---
+
+## Design architecture
+
+The design stack has four distinct layers. Each has a clear place to live.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 4 — Decisions  (what we chose and why)               │
+│  DESIGN.md                                                  │
+│  Brand palette, type scale, motion policy, elevation,       │
+│  density, dark-mode rules, do/don't. Authored once by       │
+│  /gstack-design-consultation, edited as taste evolves.      │
+└─────────────────────────────────────────────────────────────┘
+                              │ consumed by
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 3 — Tokens     (design decisions as code)            │
+│  app/globals.css                                            │
+│  OKLCH CSS variables: --primary, --background, --radius,    │
+│  --sidebar-*, --chart-*, etc. Light + dark variants.        │
+│  Changing a token here cascades through every component.    │
+└─────────────────────────────────────────────────────────────┘
+                              │ styled with
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 2 — Primitives  (reusable building blocks)           │
+│  components/ui/*.tsx  (27 shadcn components, editable)      │
+│  button, card, dialog, drawer, sidebar, tabs, tooltip, ...  │
+│  Add more via `npx shadcn@latest add <component>`.          │
+│  Animation via `motion/react` (preferred) or framer-motion. │
+└─────────────────────────────────────────────────────────────┘
+                              │ composed into
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 1 — Surfaces    (the actual pages users see)         │
+│  app/(landing), app/dashboard, app/blog                     │
+│  Real screens composed from primitives using tokens.        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Where to change what:**
+
+| You want to... | Change this | Not this |
+|---|---|---|
+| Shift the brand palette | `app/globals.css` + `DESIGN.md` | Individual component files |
+| Tweak button corner radius globally | `--radius` in `app/globals.css` | `components/ui/button.tsx` |
+| Add a new button variant | `components/ui/button.tsx` (CVA variants) | Arbitrary per-page overrides |
+| Document a new spacing rule | `DESIGN.md` | Nothing — that's the doc layer |
+| Add a new primitive | `components/ui/<name>.tsx` via shadcn CLI | Write it from scratch |
+| Change dark-mode colors | `.dark` block in `app/globals.css` | Per-component dark classes |
+
+**Skills that operate on each layer:**
+
+- **Layer 4 (Decisions):** `/gstack-design-consultation` creates/refines `DESIGN.md`. `/gstack-plan-design-review` checks plans against `DESIGN.md` before code.
+- **Layer 3 (Tokens):** `/gstack-design-review` can propose token changes as atomic commits. Manual edits in `app/globals.css` otherwise.
+- **Layer 2 (Primitives):** shadcn CLI adds; manual CVA edits modify. `/gstack-design-html` can generate `.tsx` references.
+- **Layer 1 (Surfaces):** `/gstack-design-shotgun` for visual exploration; `/gstack-design-review` for live audits.
+
+The layering means a branded redesign is a **token change**, not a sweep through 27 component files. One edit in `app/globals.css`, every component picks it up.
 
 ---
 

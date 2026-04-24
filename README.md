@@ -54,6 +54,7 @@ Full step-by-step: **[ONBOARDING.md](ONBOARDING.md)**.
 | **[CHANGELOG.md](CHANGELOG.md)** | What changed per version. |
 | **[CLAUDE.md](CLAUDE.md)** | Loaded by Claude Code every session. Encodes SVC-OS's git + security rules and the gstack integration invariants. Do not edit without reading it end-to-end. |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Upstream SVC-OS deployment guide. Phase 1 (dev) / Phase 2 (prod) flow via `/deploy-to-dev` and `/deploy-to-prod`. Unchanged from upstream. |
+| **[DESIGN.md](DESIGN.md)** | Design system source of truth — brand palette, type scale, motion policy, spacing/radius/elevation decisions, dark-mode rules. Created by `/gstack-design-consultation` and refined as taste evolves. Every design skill reads this for calibration. |
 | **[docs/UPSTREAM_README.md](docs/UPSTREAM_README.md)** | Original SVC-OS README preserved for reference. Features list, demo links, course context. |
 | **[docs/security/](docs/security/)**, **[docs/course/](docs/course/)** | SVC-OS's security + course modules. Unchanged from upstream. |
 

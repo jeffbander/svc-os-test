@@ -217,7 +217,7 @@ secure-vibe-coding-OS baseline defined above.
 | Think | `/gstack-office-hours` | Six forcing questions. Run before any new feature. |
 | Plan | `/gstack-autoplan` | Runs CEO + design + eng + DX reviews sequentially. |
 | Plan (individual) | `/gstack-plan-ceo-review`, `/gstack-plan-eng-review`, `/gstack-plan-design-review`, `/gstack-plan-devex-review` | Granular planning skills. |
-| Design (system) | `/gstack-design-consultation` | Only for greenfield; SVC-OS already has shadcn/ui + Tailwind v4 baseline. |
+| Design (system) | `/gstack-design-consultation` | Run once to create `DESIGN.md` documenting color / type / motion / spacing decisions on top of the inherited shadcn tokens. The skill documents decisions; it does NOT rebuild shadcn. |
 | Design (explore) | `/gstack-design-shotgun` | Generate variants, iterate visually. |
 | Design (implement) | `/gstack-design-html` | Pretext HTML when building a new marketing page or standalone view. |
 | Browser QA | `/gstack-qa <url>`, `/gstack-qa-only <url>`, `/gstack-browse`, `/gstack-open-gstack-browser` | Run against Vercel preview URLs (`branch-name.vercel.app`). |
@@ -261,3 +261,25 @@ secure-vibe-coding-OS baseline defined above.
 - `/gstack-ship` — conflicts with SVC-OS branch rules and `/create-pull-request`.
 - `/gstack-land-and-deploy` — conflicts with `/deploy-to-prod`.
 - `/gstack-setup-deploy` — SVC-OS already owns deploy configuration.
+
+### Design workflow
+
+shadcn does NOT block gstack's design skills. shadcn provides primitives; gstack's design skills document decisions + audit execution. Both are welcome here.
+
+**Bootstrap (once per project):** `/gstack-design-consultation` → creates `DESIGN.md` at repo root. Commit it.
+
+**Per feature with UI:**
+1. `/gstack-plan-design-review` — 7-dimension plan audit (IA, interaction states, journey, AI slop, DESIGN.md alignment, responsive/a11y, unresolved decisions). Edits the plan with specifics.
+2. Optional: `/gstack-design-shotgun` → AI mockup variants, pick, iterate.
+3. Optional: `/gstack-design-html` → choose **React output**. Pretext handles text layout. Output is a REFERENCE, not a drop-in — rebuild with shadcn primitives for consistency.
+4. Implement with composed shadcn primitives, using `DESIGN.md` tokens.
+5. After Vercel preview URL: `/gstack-design-review https://<branch>.vercel.app` → audits the live site, commits atomic fixes.
+
+**Design rules:**
+- Tokens live in `app/globals.css` (OKLCH). Change tokens there, never per-component.
+- shadcn primitives in `components/ui/` are editable — they're in the repo, not an npm dep.
+- New primitives via `npx shadcn@latest add <component>`.
+- Dark mode via `next-themes`; every design decision must work in both modes.
+- Prefer `motion/react` over `framer-motion` for new work.
+
+See `INTEGRATION.md#design-sub-workflow` for the full rationale and `DESIGN.md` (once created) for the current palette / type / motion decisions.
