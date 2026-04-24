@@ -177,3 +177,87 @@ How to use lessons:
 
 Use npm tsc --noEmit to check types after each major change
 Use npx convex dev --once --typecheck=enable 2>&1 | tail -20 to check Convex types
+
+---
+
+## gstack (workflow layer)
+
+gstack is an additive workflow layer installed globally at `~/.claude/skills/gstack/`
+with skills exposed as `/gstack-*` commands. It augments — never replaces — the
+secure-vibe-coding-OS baseline defined above.
+
+### Invariants (non-negotiable — gstack must respect these)
+
+1. **Tech stack is fixed.** Next.js 15, Convex, Clerk, Clerk Billing, Svix, Tailwind v4,
+   shadcn/ui, Vercel, TypeScript strict. gstack must not propose migrating off this stack.
+2. **Do not modify security infrastructure without explicit approval.** Files off-limits
+   by default: `middleware.ts`, `lib/security.*`, `lib/validation.*`, `lib/errors.*`,
+   `convex/auth.*`, `next.config.ts` (CSP/HSTS headers), and any file under
+   `.claude/agents/` or `.claude/skills/security/`.
+3. **SVC-OS owns git.** Use `/create-feature-branch`, `/commit`, `/push`,
+   `/sync-feature-branch`, `/sync-testing-branch`, `/create-pull-request`,
+   `/merge-to-testing`. Do NOT call `/gstack-ship` for commits or PRs.
+4. **SVC-OS owns deploy.** Use `/deploy-to-dev` and `/deploy-to-prod`. Do NOT call
+   `/gstack-land-and-deploy` or `/gstack-setup-deploy`.
+5. **SVC-OS owns the authoritative security assessment.** Use `/security-assessment`
+   before every PR (runs the 5-agent orchestrator against OWASP + auth + injection +
+   secrets + deps). `/gstack-cso` is permitted only as a secondary opinion, never
+   a replacement, and its findings must be reconciled against `/security-assessment`.
+6. **SVC-OS owns the lessons library.** `.claude/skills/lessons/` is mandatory to
+   consult before new work (per this file's "Dynamic Lessons Library" section).
+   `/gstack-learn` is a user-level parallel memory — not a substitute.
+7. **Branch rules (from above) are absolute.** Never rebase or merge into `main`.
+   PRs target `main` only. gstack must detect the base branch via `gh pr view`
+   and respect the feature/testing distinction.
+
+### Where gstack adds value (use these freely)
+
+| Phase | Command | Notes |
+|-------|---------|-------|
+| Think | `/gstack-office-hours` | Six forcing questions. Run before any new feature. |
+| Plan | `/gstack-autoplan` | Runs CEO + design + eng + DX reviews sequentially. |
+| Plan (individual) | `/gstack-plan-ceo-review`, `/gstack-plan-eng-review`, `/gstack-plan-design-review`, `/gstack-plan-devex-review` | Granular planning skills. |
+| Design (system) | `/gstack-design-consultation` | Only for greenfield; SVC-OS already has shadcn/ui + Tailwind v4 baseline. |
+| Design (explore) | `/gstack-design-shotgun` | Generate variants, iterate visually. |
+| Design (implement) | `/gstack-design-html` | Pretext HTML when building a new marketing page or standalone view. |
+| Browser QA | `/gstack-qa <url>`, `/gstack-qa-only <url>`, `/gstack-browse`, `/gstack-open-gstack-browser` | Run against Vercel preview URLs (`branch-name.vercel.app`). |
+| Auth cookies for QA | `/gstack-setup-browser-cookies` | Imports from your real Chrome so QA can test behind Clerk. |
+| Cross-model review | `/gstack-codex` | OpenAI's second opinion on the same diff after `/security-assessment`. |
+| Pre-merge diff | `/gstack-review` | Structural code review — SQL safety, trust boundaries, side effects. Run alongside `/security-assessment`, not instead. |
+| Post-merge | `/gstack-canary`, `/gstack-benchmark` | Monitor the production deploy; compare page-load / Core Web Vitals across PRs. |
+| Debug | `/gstack-investigate` | Iron Law: no fixes without root cause. Auto-freezes edit scope. |
+| Safety | `/gstack-careful`, `/gstack-freeze`, `/gstack-guard`, `/gstack-unfreeze` | Use `/gstack-freeze middleware.ts lib/ convex/auth.ts` before touching security-adjacent code. |
+| Docs | `/gstack-document-release` | Post-ship doc updates. Respects CLAUDE.md as authoritative. |
+| Retro (gstack-side) | `/gstack-retro` | Weekly engineering retro. Runs IN ADDITION TO `/retrospective`, which remains the primary lesson-capture mechanism. |
+
+### Browser tooling
+
+- Use `/gstack-browse` (from gstack) for all web browsing.
+- Never use `mcp__claude-in-chrome__*` tools.
+
+### Typical sprint on this project
+
+```
+/gstack-office-hours              ← interrogate the idea
+/gstack-autoplan                  ← CEO + design + eng + DX review of the plan
+  (approve plan, exit plan mode)
+  ... implement ...
+/create-feature-branch feat-x     ← SVC-OS: git (respects branch rules)
+/commit                           ← SVC-OS: conventional-commit format
+/push                             ← SVC-OS: push, get Vercel preview URL
+/gstack-qa <preview-url>          ← gstack: real-browser QA
+/gstack-codex                     ← gstack: OpenAI second opinion on diff
+/security-assessment              ← SVC-OS: authoritative 5-agent security audit
+/create-pull-request              ← SVC-OS: opens PR with all checks
+  (PR approved + merged)
+/deploy-to-prod                   ← SVC-OS: prod deploy
+/gstack-canary <prod-url>         ← gstack: watch for regressions
+/gstack-document-release          ← gstack: sync docs to what shipped
+/retrospective                    ← SVC-OS: capture lesson to .claude/skills/lessons/
+```
+
+### Commands that must NOT be used on this project
+
+- `/gstack-ship` — conflicts with SVC-OS branch rules and `/create-pull-request`.
+- `/gstack-land-and-deploy` — conflicts with `/deploy-to-prod`.
+- `/gstack-setup-deploy` — SVC-OS already owns deploy configuration.
