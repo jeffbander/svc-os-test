@@ -1,28 +1,10 @@
 import { v } from "convex/values";
-import { query, mutation, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { query, mutation } from "./_generated/server";
 import { authStateValidator, cptCodeValidator, AuthState, ALL_AUTH_STATES } from "./priorAuthTypes";
+import { assertOwnedByOrg, requireWorkbenchOrg, workbenchOrgIfAuthed } from "./workbenchAuth";
 
-// Hackathon scope: all queries operate on the single seeded demo organization.
-// Pilot phase (Clerk Orgs wired up): organizationId resolved from JWT `org_id` claim.
-
-async function getDemoOrgId(ctx: QueryCtx): Promise<Id<"organizations"> | null> {
-  const org = await ctx.db
-    .query("organizations")
-    .withIndex("byHackathonDemo", (q) => q.eq("isHackathonDemo", true))
-    .first();
-  return org?._id ?? null;
-}
-
-async function getDemoOrgIdOrThrow(ctx: QueryCtx): Promise<Id<"organizations">> {
-  const id = await getDemoOrgId(ctx);
-  if (!id) {
-    throw new Error(
-      "No hackathon demo organization seeded. Run `npx convex run seed:seedHackathonDemo` first.",
-    );
-  }
-  return id;
-}
+const MAX_REASON_TEXT_LEN = 2_000;
+const MAX_VENDOR_PATIENT_ID_LEN = 128;
 
 export const listQueueRows = query({
   args: {
@@ -30,7 +12,7 @@ export const listQueueRows = query({
     cptFilter: v.optional(v.array(cptCodeValidator)),
   },
   handler: async (ctx, args) => {
-    const orgId = await getDemoOrgId(ctx);
+    const orgId = await workbenchOrgIfAuthed(ctx);
     if (!orgId) return [];
 
     const records = await ctx.db
@@ -69,7 +51,6 @@ export const listQueueRows = query({
       }),
     );
 
-    // Sort: most recently changed first.
     rows.sort((a, b) => b.stateChangedAt - a.stateChangedAt);
     return rows;
   },
@@ -78,7 +59,7 @@ export const listQueueRows = query({
 export const stateCounts = query({
   args: {},
   handler: async (ctx) => {
-    const orgId = await getDemoOrgId(ctx);
+    const orgId = await workbenchOrgIfAuthed(ctx);
     if (!orgId) return Object.fromEntries(ALL_AUTH_STATES.map((s) => [s, 0])) as Record<AuthState, number>;
 
     const records = await ctx.db
@@ -95,8 +76,10 @@ export const stateCounts = query({
 export const getAuthRecordDetail = query({
   args: { authRecordId: v.id("authRecords") },
   handler: async (ctx, { authRecordId }) => {
+    const orgId = await workbenchOrgIfAuthed(ctx);
+    if (!orgId) return null;
     const record = await ctx.db.get(authRecordId);
-    if (!record) return null;
+    if (!record || record.organizationId !== orgId) return null;
     const patient = await ctx.db.get(record.patientId);
     const payer = await ctx.db.get(record.payerId);
     const plan = record.planId ? await ctx.db.get(record.planId) : null;
@@ -116,7 +99,8 @@ export const getBadgeForVendorPatient = query({
     vendorPatientId: v.string(),
   },
   handler: async (ctx, args) => {
-    const orgId = await getDemoOrgId(ctx);
+    if (args.vendorPatientId.length > MAX_VENDOR_PATIENT_ID_LEN) return null;
+    const orgId = await workbenchOrgIfAuthed(ctx);
     if (!orgId) return null;
 
     const patient = await ctx.db
@@ -156,8 +140,12 @@ export const updateAuthRecordState = mutation({
     reasonText: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const orgId = await requireWorkbenchOrg(ctx);
+    if (args.reasonText && args.reasonText.length > MAX_REASON_TEXT_LEN) {
+      throw new Error(`reasonText exceeds maximum (${MAX_REASON_TEXT_LEN} chars)`);
+    }
     const record = await ctx.db.get(args.authRecordId);
-    if (!record) throw new Error("Auth record not found");
+    assertOwnedByOrg(record, orgId);
 
     const before = record.state;
     if (before === args.newState && (record.reasonText ?? undefined) === args.reasonText) {
@@ -200,23 +188,31 @@ export const updateAuthRecordState = mutation({
 export const listCorpusForPayer = query({
   args: { payerId: v.optional(v.id("payers")) },
   handler: async (ctx, { payerId }) => {
+    const orgId = await workbenchOrgIfAuthed(ctx);
+    if (!orgId) return [];
+
     if (payerId) {
+      const payer = await ctx.db.get(payerId);
+      if (!payer || payer.organizationId !== orgId) return [];
       const chunks = await ctx.db
         .query("corpusChunks")
         .withIndex("byPayerSource", (q) => q.eq("payerId", payerId))
         .collect();
       return chunks;
     }
-    return await ctx.db.query("corpusChunks").take(20);
+
+    // Fallback: org-scoped — corpusChunks has no byOrg index (organizationId is
+    // optional), so we scan and filter. Bounded at 20 results.
+    const all = await ctx.db.query("corpusChunks").collect();
+    return all.filter((c) => c.organizationId === orgId).slice(0, 20);
   },
 });
 
 export const getDemoOrg = query({
   args: {},
   handler: async (ctx) => {
-    const orgId = await getDemoOrgId(ctx);
+    const orgId = await workbenchOrgIfAuthed(ctx);
     if (!orgId) return null;
-    const org = await ctx.db.get(orgId);
-    return org;
+    return await ctx.db.get(orgId);
   },
 });

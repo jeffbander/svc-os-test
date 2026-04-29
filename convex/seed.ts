@@ -2,6 +2,7 @@ import { mutation, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { ALL_AUTH_STATES, AuthState, CptCode, HEARTFLOW_CPT_CODES } from "./priorAuthTypes";
+import { assertNotProductionDeployment } from "./workbenchAuth";
 
 // Synthetic seed data for hackathon phase.
 // All names, MRNs, DOBs, and member IDs are fabricated. NO REAL PHI.
@@ -125,6 +126,17 @@ export const seedHackathonDemo = mutation({
     confirmReseed: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    // Production safety: never run seed on a production deployment.
+    assertNotProductionDeployment();
+
+    // Authentication: any signed-in user can seed in dev. Pilot phase will
+    // require an admin role check, but at the hackathon stage there's no user
+    // role infrastructure yet.
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthenticated — sign in before running seed");
+    }
+
     // Idempotent: if a hackathon-demo org exists, wipe its child data and reseed.
     const existing = await ctx.db
       .query("organizations")

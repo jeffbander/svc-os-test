@@ -1,4 +1,6 @@
 import { Newsreader, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import "./workbench.css";
 
 const newsreader = Newsreader({
@@ -27,7 +29,15 @@ const jetbrains = JetBrains_Mono({
   weight: ["400", "500"],
 });
 
-export default function WorkbenchLayout({ children }: { children: React.ReactNode }) {
+export default async function WorkbenchLayout({ children }: { children: React.ReactNode }) {
+  // Defense-in-depth auth check at the layout level. middleware.ts also needs
+  // /queue, /badge, /drafter added to its protected matcher; this layout
+  // check is a second layer in case the matcher is misconfigured.
+  const { userId } = await auth();
+  if (!userId) {
+    redirect("/sign-in");
+  }
+
   return (
     <div
       className={`${newsreader.variable} ${plusJakarta.variable} ${jetbrains.variable} workbench-root`}

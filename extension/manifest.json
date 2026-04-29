@@ -30,6 +30,6 @@
     "128": "icons/icon-128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; frame-src https://localhost:3000 https://*.vercel.app https://*.mountsinai.org;"
+    "extension_pages": "script-src 'self'; object-src 'none'; frame-src http://localhost:3000 https://*.vercel.app https://*.mountsinai.org;"
   }
 }

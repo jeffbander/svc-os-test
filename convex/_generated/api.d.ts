@@ -19,6 +19,7 @@ import type * as security from "../security.js";
 import type * as seed from "../seed.js";
 import type * as seedSecurityEvents from "../seedSecurityEvents.js";
 import type * as users from "../users.js";
+import type * as workbenchAuth from "../workbenchAuth.js";
 
 import type {
   ApiFromModules,
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   seedSecurityEvents: typeof seedSecurityEvents;
   users: typeof users;
+  workbenchAuth: typeof workbenchAuth;
 }>;
 
 /**

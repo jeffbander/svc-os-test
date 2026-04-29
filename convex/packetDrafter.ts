@@ -1,11 +1,15 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
 import { CPT_DESCRIPTIONS } from "./priorAuthTypes";
+import { assertOwnedByOrg, requireWorkbenchOrg, workbenchOrgIfAuthed } from "./workbenchAuth";
 
 // Mock LLM — deterministic templated draft with citation markers.
-// Real Anthropic / Bedrock / Vertex calls gated until ANTHROPIC_HIPAA_BAA env
-// flag is true (i.e. BAA signed). Hackathon = mock only.
+// Real Anthropic / Bedrock / Vertex calls gated until the integration is wired
+// up AND the corresponding HIPAA BAA is signed. The flag alone is insufficient
+// — the handler refuses to claim "anthropic" provenance unless a real call
+// path is in place. Hackathon = mock only.
+
+const MAX_EDITED_MARKDOWN_LEN = 50_000;
 
 function buildMockDraft(args: {
   patientFirstName: string;
@@ -66,8 +70,9 @@ export const draftPacket = mutation({
     authRecordId: v.id("authRecords"),
   },
   handler: async (ctx, { authRecordId }) => {
+    const orgId = await requireWorkbenchOrg(ctx);
     const record = await ctx.db.get(authRecordId);
-    if (!record) throw new Error("Auth record not found");
+    assertOwnedByOrg(record, orgId);
 
     const patient = await ctx.db.get(record.patientId);
     const payer = await ctx.db.get(record.payerId);
@@ -92,6 +97,16 @@ export const draftPacket = mutation({
     const citations = [...payerChunks, ...guidelineChunks, ...lcdChunks].slice(0, 5);
     const citationChunkIds = citations.map((c) => c._id);
 
+    // Real LLM gate. The flag alone is not enough — fail loudly if it's set
+    // without a real implementation, so the audit log never falsely claims
+    // "anthropic" provenance for a mock-generated document.
+    if (process.env.ANTHROPIC_HIPAA_BAA === "true") {
+      throw new Error(
+        "ANTHROPIC_HIPAA_BAA is set but the real LLM call is not yet implemented. " +
+          "Do not enable this flag until the Anthropic SDK integration is wired up.",
+      );
+    }
+
     const draftMarkdown = buildMockDraft({
       patientFirstName: patient.firstName,
       patientLastName: patient.lastName,
@@ -104,14 +119,13 @@ export const draftPacket = mutation({
     });
 
     const now = Date.now();
-    const useRealLlm = process.env.ANTHROPIC_HIPAA_BAA === "true";
     const draftId = await ctx.db.insert("packetDrafts", {
       organizationId: record.organizationId,
       authRecordId,
       draftMarkdown,
       citationChunkIds,
-      generatedBy: useRealLlm ? "anthropic" : "mock_llm",
-      modelVersion: useRealLlm ? "claude-opus-4-7" : "mock-deterministic-v1",
+      generatedBy: "mock_llm",
+      modelVersion: "mock-deterministic-v1",
       createdAt: now,
     });
 
@@ -132,6 +146,12 @@ export const draftPacket = mutation({
 export const getDraftForAuthRecord = query({
   args: { authRecordId: v.id("authRecords") },
   handler: async (ctx, { authRecordId }) => {
+    const orgId = await workbenchOrgIfAuthed(ctx);
+    if (!orgId) return null;
+
+    const record = await ctx.db.get(authRecordId);
+    if (!record || record.organizationId !== orgId) return null;
+
     const drafts = await ctx.db
       .query("packetDrafts")
       .withIndex("byAuthRecord", (q) => q.eq("authRecordId", authRecordId))
@@ -156,8 +176,13 @@ export const saveDraftEdits = mutation({
     editedMarkdown: v.string(),
   },
   handler: async (ctx, { draftId, editedMarkdown }) => {
+    const orgId = await requireWorkbenchOrg(ctx);
+    if (editedMarkdown.length > MAX_EDITED_MARKDOWN_LEN) {
+      throw new Error(`editedMarkdown exceeds maximum (${MAX_EDITED_MARKDOWN_LEN} chars)`);
+    }
     const draft = await ctx.db.get(draftId);
-    if (!draft) throw new Error("Draft not found");
+    assertOwnedByOrg(draft, orgId);
+
     await ctx.db.patch(draftId, { coordinatorEdits: editedMarkdown });
     await ctx.db.insert("auditLog", {
       organizationId: draft.organizationId,
@@ -175,14 +200,15 @@ export const markPacketSubmitted = mutation({
     draftId: v.id("packetDrafts"),
   },
   handler: async (ctx, { draftId }) => {
+    const orgId = await requireWorkbenchOrg(ctx);
     const draft = await ctx.db.get(draftId);
-    if (!draft) throw new Error("Draft not found");
+    assertOwnedByOrg(draft, orgId);
 
     const now = Date.now();
     await ctx.db.patch(draftId, { submittedAt: now });
 
     const record = await ctx.db.get(draft.authRecordId);
-    if (record && record.state !== "submitted") {
+    if (record && record.organizationId === orgId && record.state !== "submitted") {
       const before = record.state;
       await ctx.db.patch(draft.authRecordId, {
         state: "submitted",
