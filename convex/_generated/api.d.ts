@@ -10,6 +10,7 @@
 
 import type * as http from "../http.js";
 import type * as lib_securityLogger from "../lib/securityLogger.js";
+import type * as packetDrafter from "../packetDrafter.js";
 import type * as paymentAttemptTypes from "../paymentAttemptTypes.js";
 import type * as paymentAttempts from "../paymentAttempts.js";
 import type * as priorAuth from "../priorAuth.js";
@@ -28,6 +29,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/securityLogger": typeof lib_securityLogger;
+  packetDrafter: typeof packetDrafter;
   paymentAttemptTypes: typeof paymentAttemptTypes;
   paymentAttempts: typeof paymentAttempts;
   priorAuth: typeof priorAuth;
