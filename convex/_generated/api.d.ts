@@ -10,11 +10,16 @@
 
 import type * as http from "../http.js";
 import type * as lib_securityLogger from "../lib/securityLogger.js";
+import type * as packetDrafter from "../packetDrafter.js";
 import type * as paymentAttemptTypes from "../paymentAttemptTypes.js";
 import type * as paymentAttempts from "../paymentAttempts.js";
+import type * as priorAuth from "../priorAuth.js";
+import type * as priorAuthTypes from "../priorAuthTypes.js";
 import type * as security from "../security.js";
+import type * as seed from "../seed.js";
 import type * as seedSecurityEvents from "../seedSecurityEvents.js";
 import type * as users from "../users.js";
+import type * as workbenchAuth from "../workbenchAuth.js";
 
 import type {
   ApiFromModules,
@@ -25,11 +30,16 @@ import type {
 declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/securityLogger": typeof lib_securityLogger;
+  packetDrafter: typeof packetDrafter;
   paymentAttemptTypes: typeof paymentAttemptTypes;
   paymentAttempts: typeof paymentAttempts;
+  priorAuth: typeof priorAuth;
+  priorAuthTypes: typeof priorAuthTypes;
   security: typeof security;
+  seed: typeof seed;
   seedSecurityEvents: typeof seedSecurityEvents;
   users: typeof users;
+  workbenchAuth: typeof workbenchAuth;
 }>;
 
 /**
